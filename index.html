@@ -80,6 +80,36 @@
             <input onchange="changeSize('laserPower',this);" type="number" placeholder="clamp" value="200"/>
         </div>
     </legend>
+    <legend id="enabledSides">
+        <label for="enabledSides">Enabled Sides</label>
+
+        <div>
+            <label>Side A</label>
+            <input onchange="changeEnabledSides('a');" type="checkbox" checked="checked"/>
+        </div>
+        <div>
+            <label>Side B</label>
+            <input onchange="changeEnabledSides('b');" type="checkbox" checked="checked"/>
+        </div>
+        <div>
+            <label>Side C</label>
+            <input onchange="changeEnabledSides('c');" type="checkbox" checked="checked"/>
+        </div>
+        <div>
+            <label>Side D</label>
+            <input onchange="changeEnabledSides('d');" type="checkbox" checked="checked"/>
+        </div>
+        <div>
+            <label>Side E</label>
+            <input onchange="changeEnabledSides('e');" type="checkbox" checked="checked"/>
+        </div>
+        <div>
+            <label>Side F</label>
+            <input onchange="changeEnabledSides('f');" type="checkbox" checked="checked"/>
+        </div>
+
+    </legend>
+
     <legend id="export">
         <label for="export">Export</label>
 
@@ -104,7 +134,14 @@
     var clampWidth = 20;
     var materialDepth = 4;
     var sides = [];
-
+    var enabledSides = {
+        'a': true,
+        'b': true,
+        'c': true,
+        'd': true,
+        'e': true,
+        'f': true
+    };
     var workSpeed = 150;
     var speed = 400;
     var laserPower = 200;
@@ -133,7 +170,18 @@
         });
 
         sides = [];
-        makeBox(width, height, depth, clampWidth, materialDepth);
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
+    }
+
+    function changeEnabledSides(side) {
+
+        sides.forEach(function (side) {
+            scene.remove(side.line);
+        });
+
+        sides = [];
+        enabledSides[side] = !enabledSides[side];
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
     }
 
 
@@ -164,9 +212,6 @@
         var offsetX = 0;
         var offsetY = 0;
 
-//        width
-//        height
-
         if (type == 'g-code') {
             textarea.value += "G90\n";
             textarea.value += "S" + laserPower + "\n";
@@ -174,11 +219,12 @@
             textarea.value += "G0 X0.000 Y0.000\n";
 
             sides.forEach(function (side, index) {
+
                 exportShapeGcode(side.path, offsetX, offsetY);
-                offsetX += side.width + 3;
+                offsetX += side.height + 3;
                 if (index == 2) {
-                    offsetX = side.width;
-                    offsetY += side.height + 3;
+                    offsetX = 0;
+                    offsetY += side.width + 3;
                 }
 //
                 textarea.value += "M3\n";
@@ -606,40 +652,47 @@
     }
 
 
-    function makeBox(width, height, depth, clampWidth, materialDepth) {
+    function makeBox(width, height, depth, clampWidth, materialDepth, enabledSides) {
 
-        var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'top');
-        addPath(side);
-        side.line.geometry.translate(-(width / 2), depth / 2, -(height / 2));
-        sides.push(side);
+        if (enabledSides['a']) {
+            var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'top');
+            addPath(side);
+            side.line.geometry.translate(-(width / 2), depth / 2, -(height / 2));
+            sides.push(side);
+        }
 
-        var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'bottom');
-        addPath(side);
-        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
-        sides.push(side);
+        if (enabledSides['b']) {
+            var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'bottom');
+            addPath(side);
+            side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+            sides.push(side);
+        }
+        if (enabledSides['c']) {
+            var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'left');
 
-        var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'left');
+            addPath(side);
+            side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+            sides.push(side);
+        }
+        if (enabledSides['d']) {
+            var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'right');
 
-        addPath(side);
-        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
-        sides.push(side);
-
-        var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'right');
-
-        addPath(side);
-        side.line.geometry.translate(-(width / 2), -(depth / 2), (height / 2));
-        sides.push(side);
-
-        var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'front');
-        addPath(side);
-        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
-        sides.push(side);
-
-        var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'rear');
-        addPath(side);
-        side.line.geometry.translate((width / 2), -(depth / 2), -(height / 2));
-        sides.push(side);
-
+            addPath(side);
+            side.line.geometry.translate(-(width / 2), -(depth / 2), (height / 2));
+            sides.push(side);
+        }
+        if (enabledSides['e']) {
+            var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'front');
+            addPath(side);
+            side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+            sides.push(side);
+        }
+        if (enabledSides['f']) {
+            var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'rear');
+            addPath(side);
+            side.line.geometry.translate((width / 2), -(depth / 2), -(height / 2));
+            sides.push(side);
+        }
         sides.forEach(function (side) {
             scene.add(side.line);
         });
@@ -673,7 +726,7 @@
 
         //
 
-        makeBox(width, height, depth, clampWidth, materialDepth);
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
 
         window.addEventListener('resize', onWindowResize, false);
 
