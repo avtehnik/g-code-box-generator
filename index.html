@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gcode box</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 10px;
+            background-color: #000000;
+            overflow: hidden;
+        }
+
+        #display {
+            width: 300px;
+            height: 300px;
+        }
+
+        .settings {
+            position: absolute;
+            color: white;
+        }
+
+        .settings #params label {
+            text-align: right;
+        }
+
+        .settings label {
+            display: inline-block;
+            width: 150px;
+        }
+
+        .settings input {
+            width: 50px;
+        }
+
+        #g-code {
+            width: 200px;
+            height: 100px;
+        }
+
+    </style>
+</head>
+<body>
+<div class="settings">
+    <legend id="params">
+        <label for="params">Settings</label>
+
+        <div>
+            <label>Width, mm</label>
+            <input type="number" placeholder="width" onchange="changeSize('width',this);" value="100"/>
+        </div>
+        <div>
+            <label>Height, mm</label>
+            <input type="number" placeholder="height" onchange="changeSize('height',this);" value="100"/>
+        </div>
+        <div>
+            <label>Depth, mm</label>
+            <input type="number" placeholder="depth" onchange="changeSize('depth',this);" value="100"/>
+        </div>
+        <div>
+            <label>Clamp, mm</label>
+            <input type="number" placeholder="clamp" min="10" onchange="changeSize('clampWidth',this);" value="20"/>
+        </div>
+        <div>
+            <label>Material Width, mm</label>
+            <input type="number" placeholder="clamp" min="1" onchange="changeSize('materialWidth',this);" value="4"/>
+        </div>
+        <div>
+            <label>Work Speed</label>
+            <input onchange="changeSize('workSpeed',this);" type="number" placeholder="Work Speed" value="150"/>
+        </div>
+        <div>
+            <label>Speed</label>
+            <input onchange="changeSize('speed',this);" type="number" placeholder="Speed" value="400"/>
+        </div>
+        <div>
+            <label>Laser Power</label>
+            <input onchange="changeSize('laserPower',this);" type="number" placeholder="clamp" value="200"/>
+        </div>
+    </legend>
+    <legend id="export">
+        <label for="export">Export</label>
+
+        <div>
+            <!--<button>DXF</button>-->
+            <!--<button>SVG</button>-->
+            <button onclick="dataExport('g-code');">G code</button>
+        </div>
+        <textarea id="g-code"></textarea>
+    </legend>
+</div>
+<script src="three.js"></script>
+
+<script>
+
+    var camera, scene, renderer;
+    var mesh;
+
+    var width = 100;
+    var height = 100;
+    var depth = 100;
+    var clampWidth = 20;
+    var materialDepth = 4;
+    var sides = [];
+
+    var workSpeed = 150;
+    var speed = 400;
+    var laserPower = 200;
+
+    function changeSize(type, el) {
+        if (type == 'width') {
+            width = parseInt(el.value);
+        } else if (type == 'height') {
+            height = parseInt(el.value);
+        } else if (type == 'depth') {
+            depth = parseInt(el.value);
+        } else if (type == 'clampWidth') {
+            clampWidth = parseInt(el.value);
+        } else if (type == 'materialWidth') {
+            materialDepth = parseInt(el.value);
+        } else if (type == 'workSpeed') {
+            workSpeed = parseInt(el.value);
+        } else if (type == 'speed') {
+            speed = parseInt(el.value);
+        } else if (type == 'laserPower') {
+            laserPower = parseInt(el.value);
+        }
+
+        sides.forEach(function (side) {
+            scene.remove(side.line);
+        });
+
+        sides = [];
+        makeBox(width, height, depth, clampWidth, materialDepth);
+    }
+
+
+    var textarea = document.getElementById('g-code');
+
+    function exportShapeGcode(shape, offsetX, offsetY) {
+
+        shape.forEach(function (point, index) {
+
+
+            var x = point['2d_x'] + offsetX;
+            var y = point['2d_y'] + offsetY;
+
+            textarea.value += "G" + (index == 0 ? 0 : 1) + " X" + x.toFixed(3) + " Y" + y.toFixed(3) + "\r\n";
+            if (index == 0) {
+                textarea.value += "M5\n";
+                textarea.value += "F" + workSpeed + "\n";
+            }
+
+        });
+
+
+    }
+
+
+    function dataExport(type) {
+        textarea.value = "";
+        var offsetX = 0;
+        var offsetY = 0;
+
+//        width
+//        height
+
+        if (type == 'g-code') {
+            textarea.value += "G90\n";
+            textarea.value += "S" + laserPower + "\n";
+            textarea.value += "F" + speed + "\n";
+            textarea.value += "G0 X0.000 Y0.000\n";
+
+            sides.forEach(function (side, index) {
+                exportShapeGcode(side.path, offsetX, offsetY);
+                offsetX += side.width + 3;
+                if (index == 2) {
+                    offsetX = side.width;
+                    offsetY += side.height + 3;
+                }
+//
+                textarea.value += "M3\n";
+                textarea.value += "F" + speed + "\n";
+
+            });
+            textarea.value += "G0 X0.000 Y0.000\n";
+            textarea.value += "M2\n";
+        }
+
+    }
+
+    function getClampWidth(width, clampWidth) {
+        var peaces = Math.round(width / clampWidth);
+        if (peaces % 2 == 0) {
+            peaces++;
+        }
+        var newClampWidth = (width / peaces);
+//        console.log(width, clampWidth, newClampWidth, 'x', peaces, '=', (newClampWidth * peaces));
+
+        return {clampWidth: newClampWidth, 'peaces': peaces};
+
+    }
+
+
+    /**
+     *
+     * @param path
+     * @param phase
+     * @param position
+     * @param stepX
+     * @param stepY
+     * @param limit
+     * @param direction {up, down, left, right}
+     * @returns {*}
+     */
+    function addEdge(path, phase, position, clamp, stepY, direction, x, y) {
+        for (var i = 0; i < clamp.peaces;) {
+
+            //console.log(position.x, clamp.clampWidth, clamp.peaces, i, direction);
+
+            var point = {};
+
+            point[x] = position.x;
+            point[y] = position.y;
+            point['2d_x'] = position.x;
+            point['2d_y'] = position.y;
+
+            if (!point['z']) {
+                point['z'] = 0;
+            }
+            if (!point['x']) {
+                point['x'] = 0;
+            }
+            if (!point['y']) {
+                point['y'] = 0;
+            }
+
+
+            //console.log(point);
+            path.push(point);
+
+            if (direction == 'up') {
+                if (phase == 0) {
+                    i++;
+                    position.x += clamp.clampWidth;
+                } else if (phase == 1) {
+                    position.y += stepY;
+                } else if (phase == 2) {
+                    i++;
+                    position.x += clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.y -= stepY;
+                }
+            } else if (direction == 'left') {
+                if (phase == 0) {
+                    position.y += clamp.clampWidth;
+                    i++;
+                } else if (phase == 1) {
+                    position.x -= stepY;
+                } else if (phase == 2) {
+                    position.y += clamp.clampWidth;
+                    i++;
+                } else if (phase == 3) {
+                    position.x += stepY;
+                }
+            } else if (direction == 'right') {
+                if (phase == 0) {
+                    position.y -= clamp.clampWidth;
+                } else if (phase == 1) {
+                    position.x += stepY;
+                    i++;
+                } else if (phase == 2) {
+                    position.y -= clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.x -= stepY;
+                    i++;
+                }
+            } else if (direction == 'down') {
+                if (phase == 0) {
+                    position.x -= clamp.clampWidth;
+                    i++;
+                } else if (phase == 1) {
+                    position.y -= stepY;
+                } else if (phase == 2) {
+                    position.x -= clamp.clampWidth;
+                    i++;
+                } else if (phase == 3) {
+                    position.y += stepY;
+                }
+            }
+
+            phase++;
+            if (phase > 3) {
+                phase = 0;
+            }
+        }
+
+
+    }
+
+    /**
+     *
+     * @param path
+     * @param phase
+     * @param position
+     * @param stepX
+     * @param stepY
+     * @param limit
+     * @param direction {up, down, left, right}
+     * @returns {*}
+     */
+    function addEdge2(path, phase, position, clamp, stepY, direction, x, y) {
+        if (direction == 'down') {
+            //position.x = position.x + stepY;
+        } else if (direction == 'left') {
+            position.x = position.x - stepY;
+        } else if (direction == 'up') {
+            position.y = position.y + stepY;
+            position.x = position.x + stepY;
+        }
+
+        for (var i = 0; i < clamp.peaces;) {
+
+            //console.log(position.x, clamp.clampWidth, clamp.peaces, i, direction);
+
+            var point = {};
+
+            point[x] = position.x;
+            point[y] = position.y;
+            point['2d_x'] = position.x;
+            point['2d_y'] = position.y;
+
+            if (!point['z']) {
+                point['z'] = 0;
+            }
+            if (!point['x']) {
+                point['x'] = 0;
+            }
+            if (!point['y']) {
+                point['y'] = 0;
+            }
+
+
+            //console.log(point);
+            path.push(point);
+
+            if (direction == 'up') {
+                if (phase == 0) {
+                    if (i == 0) {
+                        position.x += clamp.clampWidth - stepY;
+                    } else {
+                        position.x += clamp.clampWidth;
+                    }
+                    i++;
+                } else if (phase == 1) {
+                    position.y -= stepY;
+                } else if (phase == 2) {
+                    i++;
+                    position.x += clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.y += stepY;
+                }
+            } else if (direction == 'left') {
+//                console.log(direction, i, clamp.peaces, phase);
+                if (phase == 0) {
+                    if (i == 0 || i == clamp.peaces - 1) {
+                        position.y = position.y + (clamp.clampWidth - stepY);
+                    } else {
+                        position.y += clamp.clampWidth;
+                    }
+                    i++;
+                } else if (phase == 1) {
+                    position.x += stepY;
+                } else if (phase == 2) {
+                    i++;
+                    if (i == clamp.peaces) {
+                        console.log(direction, i);
+                        position.y += clamp.clampWidth - stepY;
+                    } else {
+                        position.y += clamp.clampWidth;
+                    }
+                } else if (phase == 3) {
+                    position.x -= stepY;
+                }
+            } else if (direction == 'right') {
+                if (phase == 0) {
+                    if (i == 0 || i == clamp.peaces - 1) {
+                        position.y -= (clamp.clampWidth - stepY);
+                    } else {
+                        position.y -= clamp.clampWidth;
+                    }
+                } else if (phase == 1) {
+                    position.x -= stepY;
+                    i++;
+                } else if (phase == 2) {
+                    position.y -= clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.x += stepY;
+                    i++;
+                }
+            } else if (direction == 'down') {
+                if (phase == 0) {
+                    if (i == 0 || i == clamp.peaces - 1) {
+                        position.x -= (clamp.clampWidth - stepY);
+                    } else {
+                        position.x -= clamp.clampWidth;
+                    }
+                    i++;
+                } else if (phase == 1) {
+                    position.y += stepY;
+                } else if (phase == 2) {
+                    position.x -= clamp.clampWidth;
+                    i++;
+                } else if (phase == 3) {
+                    position.y -= stepY;
+                }
+            }
+
+            phase++;
+            if (phase > 3) {
+                phase = 0;
+            }
+        }
+
+
+    }
+
+    /**
+     *
+     * @param path
+     * @param phase
+     * @param position
+     * @param stepX
+     * @param stepY
+     * @param limit
+     * @param direction {up, down, left, right}
+     * @returns {*}
+     */
+    function addEdge3(path, phase, position, clamp, stepY, direction, x, y) {
+        if (direction == 'down') {
+            //position.x = position.x + stepY;
+        } else if (direction == 'left') {
+            position.x = position.x - stepY;
+        } else if (direction == 'up') {
+//            position.y = position.y - stepY;
+            position.x = position.x + stepY;
+            phase = 0
+        }
+
+        for (var i = 0; i < clamp.peaces;) {
+
+            //console.log(position.x, clamp.clampWidth, clamp.peaces, i, direction);
+
+            var point = {};
+
+            point[x] = position.x;
+            point[y] = position.y;
+            point['2d_x'] = position.x;
+            point['2d_y'] = position.y;
+
+            if (!point['z']) {
+                point['z'] = 0;
+            }
+            if (!point['x']) {
+                point['x'] = 0;
+            }
+            if (!point['y']) {
+                point['y'] = 0;
+            }
+            //console.log(point);
+            path.push(point);
+
+            if (direction == 'up') {
+                if (phase == 0) {
+                    if (i == 0) {
+                        position.x += clamp.clampWidth - stepY;
+                    } else {
+                        position.x += clamp.clampWidth;
+                    }
+                    i++;
+                } else if (phase == 1) {
+                    position.y += stepY;
+                } else if (phase == 2) {
+                    i++;
+                    position.x += clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.y -= stepY;
+                }
+            } else if (direction == 'left') {
+                if (phase == 0) {
+                    position.y += clamp.clampWidth;
+                    i++;
+                } else if (phase == 1) {
+                    position.x += stepY;
+                } else if (phase == 2) {
+                    i++;
+                    if (i == clamp.peaces) {
+                        console.log(direction, i);
+                        position.y += clamp.clampWidth - stepY;
+                    } else {
+                        position.y += clamp.clampWidth;
+                    }
+                } else if (phase == 3) {
+                    position.x -= stepY;
+                }
+            } else if (direction == 'right') {
+                if (phase == 0) {
+                    position.y -= clamp.clampWidth;
+                } else if (phase == 1) {
+                    position.x -= stepY;
+                    i++;
+                } else if (phase == 2) {
+                    position.y -= clamp.clampWidth;
+                } else if (phase == 3) {
+                    position.x += stepY;
+                    i++;
+                }
+            } else if (direction == 'down') {
+                if (phase == 0) {
+                    if (i == 0 || i == clamp.peaces - 1) {
+                        position.x -= (clamp.clampWidth - stepY);
+                    } else {
+                        position.x -= clamp.clampWidth;
+                    }
+                    i++;
+                } else if (phase == 1) {
+                    position.y -= stepY;
+                } else if (phase == 2) {
+                    position.x -= clamp.clampWidth;
+                    i++;
+                } else if (phase == 3) {
+                    position.y += stepY;
+                }
+            }
+
+            phase++;
+            if (phase > 3) {
+                phase = 0;
+            }
+        }
+
+
+    }
+
+    function generateSide(width, height, clampWidth, materialDepth, x, y, shift) {
+        var clampX = getClampWidth(height, clampWidth);
+        var clampY = getClampWidth(width, clampWidth);
+//        console.log(clampY, clampX);
+
+        var path = [];
+        var position = {x: 0, y: 0, z: 0};
+
+        var phase = 0;
+
+        if (shift == 'top' || shift == 'bottom') {
+            addEdge2(path, phase, position, clampX, materialDepth, 'up', x, y);
+            addEdge2(path, phase, position, clampY, materialDepth, 'left', x, y);
+            addEdge2(path, phase, position, clampX, materialDepth, 'down', x, y);
+            addEdge2(path, phase, position, clampY, materialDepth, 'right', x, y);
+
+        } else if (shift == 'left' || shift == 'right') {
+
+            addEdge(path, phase, position, clampX, materialDepth, 'up', x, y);
+            addEdge(path, phase, position, clampY, materialDepth, 'left', x, y);
+            addEdge(path, phase, position, clampX, materialDepth, 'down', x, y);
+            addEdge(path, phase, position, clampY, materialDepth, 'right', x, y);
+
+        } else if (shift == 'rear' || shift == 'front') {
+
+            addEdge3(path, phase, position, clampX, materialDepth, 'up', x, y);
+            addEdge3(path, phase, position, clampY, materialDepth, 'left', x, y);
+            addEdge3(path, phase, position, clampX, materialDepth, 'down', x, y);
+            addEdge3(path, phase, position, clampY, materialDepth, 'right', x, y);
+        }
+
+        var geometry = new THREE.BufferGeometry();
+        var material = new THREE.LineBasicMaterial({
+//            color: 0xFF0000,
+            color: Math.random() * 0xFFFFFF << 0,
+
+            linewidth: 15
+        });
+
+        return {
+            'geometry': geometry,
+            'path': path,
+            'width': width,
+            'height': height,
+            'line': new THREE.Line(geometry, material)
+        }
+
+    }
+
+    function addPath(side) {
+        side.geometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(side.path.length * 3), 3));
+        var index = 0;
+
+        for (var i = 0, l = side.path.length; i < l; i++) {
+            var positions = side.geometry.attributes.position.array;
+            positions[index++] = side.path[i].y;
+            positions[index++] = side.path[i].z;
+            positions[index++] = side.path[i].x;
+        }
+    }
+
+
+    function makeBox(width, height, depth, clampWidth, materialDepth) {
+
+        var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'top');
+        addPath(side);
+        side.line.geometry.translate(-(width / 2), depth / 2, -(height / 2));
+        sides.push(side);
+
+        var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'bottom');
+        addPath(side);
+        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+        sides.push(side);
+
+        var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'left');
+
+        addPath(side);
+        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+        sides.push(side);
+
+        var side = generateSide(width, depth, clampWidth, materialDepth, 'z', 'y', 'right');
+
+        addPath(side);
+        side.line.geometry.translate(-(width / 2), -(depth / 2), (height / 2));
+        sides.push(side);
+
+        var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'front');
+        addPath(side);
+        side.line.geometry.translate(-(width / 2), -(depth / 2), -(height / 2));
+        sides.push(side);
+
+        var side = generateSide(depth, height, clampWidth, materialDepth, 'x', 'z', 'rear');
+        addPath(side);
+        side.line.geometry.translate((width / 2), -(depth / 2), -(height / 2));
+        sides.push(side);
+
+        sides.forEach(function (side) {
+            scene.add(side.line);
+        });
+
+    }
+
+    function init() {
+
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.z = 400;
+
+        scene = new THREE.Scene();
+        var texture = new THREE.TextureLoader().load('textures/fanera.jpg');
+
+        var geometry = new THREE.BoxBufferGeometry(depth, width, height);
+        var material = new THREE.MeshBasicMaterial({map: texture});
+        mesh = new THREE.Mesh(geometry, material);
+//        scene.add(mesh);
+
+//        sides.forEach(function (side) {
+//            scene.add(side.line);
+//        });
+
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+//        renderer.setSize(300, 300);
+        renderer.domElement.id = "display";
+        document.body.appendChild(renderer.domElement);
+
+        //
+
+        makeBox(width, height, depth, clampWidth, materialDepth);
+
+        window.addEventListener('resize', onWindowResize, false);
+
+    }
+
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    init();
+    animate();
+
+
+    //    mesh.rotation.x = 0.9449999999999513;
+    //    mesh.rotation.y = 1.8899999999999026;
+
+
+    //    mesh.rotation.x = 0.9449999999999513;
+    //    mesh.rotation.y = 1.8899999999999026;
+
+
+    //    mesh.rotation.x = 2.824999999999962;
+    //    mesh.rotation.y = 0.5650000000000004;
+
+    mesh.rotation.x = 3.084999999999957;
+    mesh.rotation.y = 0.4130000000000004;
+
+    sides.forEach(function (side) {
+
+
+        side.line.rotation.x = mesh.rotation.x;
+        side.line.rotation.y = mesh.rotation.y;
+
+
+    });
+
+
+    var rotation_x = 0;
+    var rotation_y = 0;
+
+
+    function animate() {
+
+        requestAnimationFrame(animate);
+        rotation_x += 0.005;
+        rotation_y += 0.0001;
+
+
+        mesh.rotation.x = rotation_x;
+        mesh.rotation.y = rotation_y;
+        // console.log(mesh.rotation.x,mesh.rotation.y );
+
+        sides.forEach(function (side) {
+
+
+            side.line.rotation.x = rotation_x;
+            side.line.rotation.y = rotation_y;
+
+
+        });
+
+
+        renderer.render(scene, camera);
+
+    }
+</script>
+<!--<script-->
+<!--src="https://code.jquery.com/jquery-3.1.1.min.js"-->
+<!--integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="-->
+<!--crossorigin="anonymous"></script>-->
+</body>
+</html>
