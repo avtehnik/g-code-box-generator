@@ -197,7 +197,7 @@
 
             textarea.value += "G" + (index == 0 ? 0 : 1) + " X" + x.toFixed(3) + " Y" + y.toFixed(3) + "\r\n";
             if (index == 0) {
-                textarea.value += "M5\n";
+                textarea.value += "M3\n";
                 textarea.value += "F" + workSpeed + "\n";
             }
 
@@ -227,7 +227,7 @@
                     offsetY += side.width + 3;
                 }
 //
-                textarea.value += "M3\n";
+                textarea.value += "M5\n";
                 textarea.value += "F" + speed + "\n";
 
             });
