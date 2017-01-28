@@ -114,7 +114,7 @@
         <label for="export">Export</label>
 
         <div>
-            <!--<button>DXF</button>-->
+            <button onclick="dataExport('dxf');">DXF</button>
             <!--<button>SVG</button>-->
             <button onclick="dataExport('g-code');">G code</button>
         </div>
@@ -219,7 +219,6 @@
             textarea.value += "G0 X0.000 Y0.000\n";
 
             sides.forEach(function (side, index) {
-
                 exportShapeGcode(side.path, offsetX, offsetY);
                 offsetX += side.height + 3;
                 if (index == 2) {
@@ -229,10 +228,22 @@
 //
                 textarea.value += "M5\n";
                 textarea.value += "F" + speed + "\n";
-
             });
             textarea.value += "G0 X0.000 Y0.000\n";
             textarea.value += "M2\n";
+        } else if (type == 'dxf') {
+            DxfExporter.reset();
+            sides.forEach(function (side, index) {
+                DxfExporter.exportShape(side.path, offsetX, offsetY);
+                offsetX += side.height + 3;
+                if (index == 2) {
+                    offsetX = 0;
+                    offsetY += side.width + 3;
+                }
+            });
+
+            textarea.value = DxfExporter.export();
+
         }
 
     }
@@ -801,11 +812,20 @@
 <!--src="https://code.jquery.com/jquery-3.1.1.min.js"-->
 <!--integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="-->
 <!--crossorigin="anonymous"></script>-->
+<script src="jsDXF.js"></script>
+<script src="dxf.js"></script>
 <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r;
+        i[r] = i[r] || function () {
+                    (i[r].q = i[r].q || []).push(arguments)
+                }, i[r].l = 1 * new Date();
+        a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0];
+        a.async = 1;
+        a.src = g;
+        m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
 
     ga('create', 'UA-90392164-1', 'auto');
     ga('send', 'pageview');
