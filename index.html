@@ -146,21 +146,21 @@
 
     function changeSize(type, el) {
         if (type == 'width') {
-            width = parseInt(el.value);
+            width = parseFloat(el.value);
         } else if (type == 'height') {
-            height = parseInt(el.value);
+            height = parseFloat(el.value);
         } else if (type == 'depth') {
-            depth = parseInt(el.value);
+            depth = parseFloat(el.value);
         } else if (type == 'clampWidth') {
-            clampWidth = parseInt(el.value);
+            clampWidth = parseFloat(el.value);
         } else if (type == 'materialWidth') {
-            materialDepth = parseInt(el.value);
+            materialDepth = parseFloat(el.value);
         } else if (type == 'workSpeed') {
-            workSpeed = parseInt(el.value);
+            workSpeed = parseFloat(el.value);
         } else if (type == 'speed') {
-            speed = parseInt(el.value);
+            speed = parseFloat(el.value);
         } else if (type == 'laserPower') {
-            laserPower = parseInt(el.value);
+            laserPower = parseFloat(el.value);
         }
 
         sides.forEach(function (side) {
