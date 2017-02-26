@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" manifest="static.appcache">
 <head>
     <meta charset="UTF-8">
     <title>Gcode box generator</title>
     <meta charset="utf-8">
-    <meta property="og:url"           content="https://avtehnik.github.io/gt2-gear-genaretor/" />
-    <meta property="og:type"          content="website" />
-    <meta property="og:title"         content="Gcode box generator" />
-    <meta property="og:description"   content="Generate box for laser cutter or download drawing" />
-    <meta property="og:image"         content="https://avtehnik.github.io/g-code-box-generator/pict0.jpg" />
-    <meta property="og:image:url"     content="https://avtehnik.github.io/g-code-box-generator/pict0.jpg" />
+    <meta property="og:url" content="https://avtehnik.github.io/gt2-gear-genaretor/"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="Gcode box generator"/>
+    <meta property="og:description" content="Generate box for laser cutter or download drawing"/>
+    <meta property="og:image" content="https://avtehnik.github.io/g-code-box-generator/pict0.jpg"/>
+    <meta property="og:image:url" content="https://avtehnik.github.io/g-code-box-generator/pict0.jpg"/>
 
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:image" content="https://avtehnik.github.io/g-code-box-generator/pict0.jpg"/>
@@ -58,36 +58,40 @@
         <label for="params">Settings</label>
 
         <div>
+            <label>Inside size?</label>
+            <input onchange="changeParam('sizeType',this);" type="checkbox" checked="checked"/>
+        </div>
+        <div>
             <label>Width, mm</label>
-            <input type="number" placeholder="width" onchange="changeSize('width',this);" value="100"/>
+            <input type="number" placeholder="width" onchange="changeParam('width',this);" value="100"/>
         </div>
         <div>
             <label>Height, mm</label>
-            <input type="number" placeholder="height" onchange="changeSize('height',this);" value="100"/>
+            <input type="number" placeholder="height" onchange="changeParam('height',this);" value="100"/>
         </div>
         <div>
             <label>Depth, mm</label>
-            <input type="number" placeholder="depth" onchange="changeSize('depth',this);" value="100"/>
+            <input type="number" placeholder="depth" onchange="changeParam('depth',this);" value="100"/>
         </div>
         <div>
             <label>Clamp, mm</label>
-            <input type="number" placeholder="clamp" min="10" onchange="changeSize('clampWidth',this);" value="20"/>
+            <input type="number" placeholder="clamp" min="10" onchange="changeParam('clampWidth',this);" value="20"/>
         </div>
         <div>
             <label>Material Width, mm</label>
-            <input type="number" placeholder="clamp" min="1" onchange="changeSize('materialWidth',this);" value="4"/>
+            <input type="number" placeholder="clamp" min="1" onchange="changeParam('materialWidth',this);" value="3.7"/>
         </div>
         <div>
             <label>Work Speed</label>
-            <input onchange="changeSize('workSpeed',this);" type="number" placeholder="Work Speed" value="150"/>
+            <input onchange="changeParam('workSpeed',this);" type="number" placeholder="Work Speed" value="150"/>
         </div>
         <div>
             <label>Speed</label>
-            <input onchange="changeSize('speed',this);" type="number" placeholder="Speed" value="400"/>
+            <input onchange="changeParam('speed',this);" type="number" placeholder="Speed" value="400"/>
         </div>
         <div>
             <label>Laser Power</label>
-            <input onchange="changeSize('laserPower',this);" type="number" placeholder="clamp" value="200"/>
+            <input onchange="changeParam('laserPower',this);" type="number" placeholder="clamp" value="200"/>
         </div>
     </legend>
     <legend id="enabledSides">
@@ -140,7 +144,7 @@
     var height = 100;
     var depth = 100;
     var clampWidth = 20;
-    var materialDepth = 4;
+    var materialDepth = 3.7;
     var sides = [];
     var enabledSides = {
         'a': true,
@@ -153,8 +157,9 @@
     var workSpeed = 150;
     var speed = 400;
     var laserPower = 200;
+    var insideSize = true;
 
-    function changeSize(type, el) {
+    function changeParam(type, el) {
         if (type == 'width') {
             width = parseFloat(el.value);
         } else if (type == 'height') {
@@ -169,6 +174,8 @@
             workSpeed = parseFloat(el.value);
         } else if (type == 'speed') {
             speed = parseFloat(el.value);
+        } else if (type == 'sizeType') {
+            insideSize = el.checked;
         } else if (type == 'laserPower') {
             laserPower = parseFloat(el.value);
         }
@@ -178,7 +185,7 @@
         });
 
         sides = [];
-        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides, insideSize);
     }
 
     function changeEnabledSides(side) {
@@ -189,7 +196,7 @@
 
         sides = [];
         enabledSides[side] = !enabledSides[side];
-        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides, insideSize);
     }
 
 
@@ -671,7 +678,14 @@
     }
 
 
-    function makeBox(width, height, depth, clampWidth, materialDepth, enabledSides) {
+    function makeBox(width, height, depth, clampWidth, materialDepth, enabledSides, insideSize) {
+
+
+        if (insideSize) {
+            width += (materialDepth * 2);
+            height += (materialDepth * 2);
+            depth += (materialDepth * 2);
+        }
 
         if (enabledSides['a']) {
             var side = generateSide(width, height, clampWidth, materialDepth, 'x', 'y', 'top');
@@ -735,7 +749,7 @@
         renderer.domElement.id = "display";
         document.body.appendChild(renderer.domElement);
 
-        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides);
+        makeBox(width, height, depth, clampWidth, materialDepth, enabledSides, insideSize);
 
         window.addEventListener('resize', onWindowResize, false);
 
@@ -776,12 +790,54 @@
 
         renderer.render(scene, camera);
 
+
+        window.applicationCache.addEventListener('updateready', function (e) {
+            appbuilder.app.debug('cache', 'update', e);
+            if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
+                // Browser downloaded a new app cache.
+                // Swap it in and reload the page to get the new hotness.
+                try {
+                    window.applicationCache.swapCache();
+                }
+                catch (err) {
+                    appbuilder.app.debug('cache', 'swap', err);
+                }
+                setTimeout(function () {
+                    appbuilder.app.confirm('New version of the app is available. Update the app?', function (c) {
+                        if (c) {
+                            window.location.reload();
+                        }
+                    });
+                }, (diff = new Date() - (startUpdate || new Date())) > 15000 ? 0 : 15000 - diff);
+            } else {
+                // Manifest didn't changed. Nothing new to server.
+            }
+        }, false);
     }
+
+    window.applicationCache.addEventListener('downloading', function () {
+        console.log('cache', 'downloading');
+        console.log('Downloading updates to app');
+    }, false);
+
+    window.applicationCache.addEventListener('noupdate', function () {
+        console.log('cache', 'noupdate');
+    }, false);
+
+    window.applicationCache.addEventListener('progress', function (e) {
+        var progress = (e.loaded / e.total) * 100;
+        console.log('cache', 'progress', progress, e);
+    }, false);
+    window.applicationCache.addEventListener('cached', function () {
+        console.log('cache', 'cached');
+        console.log('App is now available offline');
+    }, false);
+
+    window.applicationCache.addEventListener('error', function (e) {
+        console.log('cache', 'error', e);
+    }, false);
+
 </script>
-<!--<script-->
-<!--src="https://code.jquery.com/jquery-3.1.1.min.js"-->
-<!--integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="-->
-<!--crossorigin="anonymous"></script>-->
 <script src="dxf.js"></script>
 <script>
 
